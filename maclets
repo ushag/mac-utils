@@ -1,1 +1,81 @@
-../../bitbucket/git-scripts/maclets
+#!/usr/bin/sh
+
+__test_option () {
+    allowed_options=(on ON off OFF y Y n N no NO yes YES)
+    case "${allowed_options[@]}" in  *"$1"*) return 1 ;; esac
+}
+
+__toggle_finder_defaults() {
+    case "$2" in
+	on|ON|y|Y|yes|YES) 
+	    defaults write com.apple.finder $1 -boolean $3;killall Finder;;
+	off|OFF|n|N|no|NO) 					  
+	    defaults write com.apple.finder $1 -boolean $4;killall Finder;;
+	* ) echo "invalid option";;
+    esac;
+}
+
+toggle() { 
+    __test_option $2
+    if [ $? != 1 ] || [ -z "$1" ] || [ -z "$2" ]; 
+    then
+	echo "usage: toggle <service> <on/off/y/n>"
+	echo "Shows 'No matching processes belonging to you were found' when no Finder process exists, but not to worry"
+	return;
+    fi
+    
+    case "$1" in
+	spotlight)
+	    echo "Turning Spotlight $2"; 
+	    case "$2" in
+		on|ON|y|Y|yes|YES) 
+		    sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.metadata.mds.plist; 
+		    sudo chmod 755 /System/Library/CoreServices/Search.bundle/Contents/MacOS/Search;
+		    killall SystemUIServer; sudo mdutil -a -i on;;
+		off|OFF|n|N|no|NO) 
+	 	    sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.metadata.mds.plist; 
+		    sudo chmod 600 /System/Library/CoreServices/Search.bundle/Contents/MacOS/Search;
+	 	    killall SystemUIServer; sudo mdutil -a -i off;; 
+	    esac;;		  
+	desktop-icons)
+	    __toggle_finder_defaults CreateDesktop $2 true false;;       
+	hidden-files)
+	    __toggle_finder_defaults AppleShowAllFiles $2 true false;;       
+	preferences)
+	    __toggle_finder_defaults ProhibitFinderPreferences $2 no yes;;       
+	animate-info)
+	    __toggle_finder_defaults AnimateInfoPanes $2 yes no;;       
+	trash-warning)
+	    __toggle_finder_defaults WarnOnEmptyTrash $2 true false;;       
+	extension-change-warning)
+	    __toggle_finder_defaults FXEnableExtensionChangeWarning $2 true false;;       
+	remote-disk)
+	    __toggle_finder_defaults EnableODiskBrowsing $2 yes no;;       	    
+	ql-text-selection)
+	    __toggle_finder_defaults QLEnableTextSelection $2 yes no;;       
+	ql-stay-active)
+	    __toggle_finder_defaults QLHidePanelOnDeactivate $2 false true;;       
+	path-bar)
+	    __toggle_finder_defaults ShowPathBar $2 true false;;       
+	path-bar-title)
+	    __toggle_finder_defaults _FXShowPosixPathInTitle $2 true false;;       
+	visual-stripes)
+	    #NOT WORKING
+	    __toggle_finder_defaults FXListViewStripes $2 true false;;       
+	mdutil)
+	    case "$2" in
+		on|ON|y|Y) 
+		    sudo mdutil -a -i on;;
+		off|OFF|n|N) 
+		    sudo mdutil -a -i off;;
+	    esac;;
+	dashboard)
+	    case "$2" in
+		on|ON|y|Y) 
+		    defaults write com.apple.dashboard mcx-disabled -boolean NO;killall Dock;;
+		off|OFF|n|N) 
+		    defaults write com.apple.dashboard mcx-disabled -boolean YES;killall Dock;;
+	    esac;;
+    esac
+}
+
